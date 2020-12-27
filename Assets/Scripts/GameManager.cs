@@ -1,6 +1,6 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -11,8 +11,8 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        m_LevelBuilder.Build();
-        m_Player = FindObjectOfType<Player>();
+        m_NextButton.SetActive(false);
+        ResetScene();
     }
 
     void Update()
@@ -25,7 +25,7 @@ public class GameManager : MonoBehaviour
             {
                 m_ReadyForInput = false;
                 m_Player.Move(moveInput);
-                //m_NextButton.SetActive(IsLevelComplete());
+                m_NextButton.SetActive(IsLevelComplete());
             }
         }
         else
@@ -36,13 +36,49 @@ public class GameManager : MonoBehaviour
 
     public void NextLevel()
     {
-        //m_NextButton.SetActive(false);
+        m_NextButton.SetActive(false);
         m_LevelBuilder.NextLevel();
-        //StartCoroutine(ResetSceneASync());
+        StartCoroutine(ResetSceneASync());
     }
 
     public void ResetScene()
     {
-        //StartCoroutine(ResetSceneASync());
+        StartCoroutine(ResetSceneASync());
+    }
+
+    bool IsLevelComplete()
+    {
+        Box[] boxes = FindObjectsOfType<Box>();
+        foreach (var box in boxes)
+        {
+            if (!box.m_OnCross) return false;
+        }
+        return true;
+    }
+
+    IEnumerator ResetSceneASync()
+    {
+        if (SceneManager.sceneCount >1)
+        {
+            AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync("LevelScene");
+            while (!asyncUnload.isDone)
+            {
+                yield return null;
+                Debug.Log("Unloading");
+            }
+            Debug.Log("Unload done");
+            Resources.UnloadUnusedAssets();
+        }
+
+        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("LevelScene", LoadSceneMode.Additive);
+        while (!asyncLoad.isDone)
+        {
+            yield return null;
+            Debug.Log("Loading...");
+        }
+        SceneManager.SetActiveScene(SceneManager.GetSceneByName("LevelScene"));
+        m_LevelBuilder.Build();
+        m_Player = FindObjectOfType<Player>();
+        Debug.Log("Level loaded");
     }
 }
